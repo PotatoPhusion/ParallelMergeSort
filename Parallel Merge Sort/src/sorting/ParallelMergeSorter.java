@@ -4,7 +4,7 @@ import java.util.Comparator;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.RecursiveAction;
 
-public class ParallelMergeSorter<E> implements Runnable {
+public class ParallelMergeSorter<E> extends RecursiveAction {
 	
 	private Integer[] a;
 	private Comparator<Integer> comp;
@@ -43,7 +43,7 @@ public class ParallelMergeSorter<E> implements Runnable {
      * @param comp the comparator to compare array elements
      */
     @SuppressWarnings("unchecked")
-	public ParallelMergeSorter(E[] a, int from, int to, Comparator<? super E> comp) {
+	public ParallelMergeSorter(E[] a, int from, int to, Comparator<? super E> comp, int maxThreads) {
     	
     	this.a = (Integer[])a;
     	this.comp = (Comparator<Integer>)comp;
@@ -66,8 +66,8 @@ public class ParallelMergeSorter<E> implements Runnable {
         }
         int mid = (from + to) / 2;
         // Sort the first and the second half
-        System.out.println("Max Threads: " + this.maxThreads);
-        System.out.println("Available Threads: " + availableThreads);
+        //System.out.println("=============== PARALLEL ===============");
+        
         if (availableThreads <= 1) {
         	mergeSort(a, from, mid, comp);
             mergeSort(a, mid + 1, to, comp);
@@ -75,28 +75,8 @@ public class ParallelMergeSorter<E> implements Runnable {
         else {
 	        availableThreads -= 2;
 	        
-	        Runnable p = new ParallelMergeSorter(a, from, mid, comp);
-	        Runnable q = new ParallelMergeSorter(a, mid, to, comp);
-	        
-	        Thread thread1 = new Thread(p, "First Half " + availableThreads);
-	        Thread thread2 = new Thread(q, "Second Half " + availableThreads);
-	        
-	        thread1.start();
-	        thread2.start();
-	        System.out.println("Split! (parallelMergeSort)");
-	        
-	        try {
-				thread1.join();
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				System.out.println(thread1.getName() + " interrupted");
-			}
-	        try {
-				thread2.join();
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				System.out.println(thread2.getName() + " interrupted");
-			}
+	        invokeAll(new ParallelMergeSorter(a, from, mid, comp, maxThreads),
+	        		  new ParallelMergeSorter(a, mid, to, comp, maxThreads));
 	        
 	        availableThreads += 2;
         }
@@ -111,14 +91,14 @@ public class ParallelMergeSorter<E> implements Runnable {
      * @param to the last index of the range to sort
      * @param comp the comparator to compare array elements
      */
-    private static <E> void mergeSort(E[] a, int from, int to,
+    private <E> void mergeSort(E[] a, int from, int to,
             Comparator<? super E> comp) {
     	if (from == to) {
             return;
         }
         int mid = (from + to) / 2;
         // Sort the first and the second half
-        
+        //System.out.println("=============== SERIAL ===============");
 
         if (availableThreads <= 1) {
         	mergeSort(a, from, mid, comp);
@@ -127,28 +107,8 @@ public class ParallelMergeSorter<E> implements Runnable {
         else {
 	        availableThreads -= 2;
 	        
-	        Runnable p = new ParallelMergeSorter(a, from, mid, comp);
-	        Runnable q = new ParallelMergeSorter(a, mid, to, comp);
-	        
-	        Thread thread1 = new Thread(p, "First Half " + availableThreads);
-	        Thread thread2 = new Thread(q, "Second Half " + availableThreads);
-	        
-	        thread1.start();
-	        thread2.start();
-	        System.out.println("Split! (mergeSort)");
-	        
-	        try {
-				thread1.join();
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				System.out.println(thread1.getName() + " interrupted.");
-			}
-	        try {
-				thread2.join();
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				System.out.println(thread2.getName() + " interrupted.");
-			}
+	        invokeAll(new ParallelMergeSorter(a, from, mid, comp, maxThreads),
+	        		  new ParallelMergeSorter(a, mid, to, comp, maxThreads));
 	        
 	        availableThreads += 2;
         }
@@ -214,9 +174,9 @@ public class ParallelMergeSorter<E> implements Runnable {
             a[from + j] = (E) b[j];
         }
     }
-	
-	public void run() {
-		System.out.println(Thread.currentThread().getName());
+
+	@Override
+	protected void compute() {
 		parallelMergeSort(a, 0, a.length - 1, comp);
 	}
     

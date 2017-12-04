@@ -3,8 +3,7 @@ package sorting;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Random;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.ForkJoinPool;
 
 /**
  *
@@ -24,12 +23,12 @@ public class SortTester {
     			System.out.println(i + " thread:");
     		else
     			System.out.println(i + " threads:");
-	    	for (int j = 0; j < 15; j++) {
+	    	for (int j = 0; j < 10; j++) {
 	    		try {
 	    			runSortTester(1000 << j, i);
 	    		}
 	    		catch (RuntimeException e) {
-	    			System.out.println("Sorting failed, try reducing the number of threads.");
+	    			System.out.println("Sorting failed, threads may be out of sync.");
 	    			e.getMessage();
 	    			break;
 	    		}
@@ -38,8 +37,7 @@ public class SortTester {
     	}
     }
 
-    public static void runSortTester(int elements, int threads) {
-    	int availableThreads = maxThreads;
+    public static void runSortTester(int elements, int threadCount) {
         int LENGTH = elements;   // length of array to sort
         Integer[] a = createRandomArray(LENGTH);
 
@@ -51,15 +49,11 @@ public class SortTester {
 
         // run the algorithm and time how long it takes to sort the elements
         long startTime = System.currentTimeMillis();
-        Runnable r = new ParallelMergeSorter(a, comp, threads);
-        Thread t = new Thread(r);
-        t.start();
-        try {
-			t.join();
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			System.out.println(t.getName() + " interrupted.");
-		}
+        
+        ParallelMergeSorter sorter =  new ParallelMergeSorter(a, comp, threadCount);
+        ForkJoinPool pool = new ForkJoinPool(threadCount);
+        pool.invoke(sorter);
+        
         long endTime = System.currentTimeMillis();
 
         if (!isSorted(a, comp)) {
