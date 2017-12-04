@@ -24,14 +24,14 @@ public class SortTester {
     		else
     			System.out.println(i + " threads:");
 	    	for (int j = 0; j < 10; j++) {
-	    		try {
-	    			runSortTester(1000 << j, i);
-	    		}
-	    		catch (RuntimeException e) {
-	    			System.out.println("Sorting failed, threads may be out of sync.");
-	    			e.getMessage();
-	    			break;
-	    		}
+	    		//try {
+	    			runSortTester(10 << j, i);
+	    		//}
+	    		//catch (RuntimeException e) {
+	    			//System.out.println("Sorting failed, threads may be out of sync.");
+	    			//e.getMessage();
+	    			//break;
+	    		//}
 	    	}
 	    	System.out.println();
     	}
@@ -53,6 +53,7 @@ public class SortTester {
         ParallelMergeSorter sorter =  new ParallelMergeSorter(a, comp, threadCount);
         ForkJoinPool pool = new ForkJoinPool(threadCount);
         pool.invoke(sorter);
+        System.out.println("Max Threads in Pool: " + pool.getParallelism());
         
         long endTime = System.currentTimeMillis();
 
@@ -61,7 +62,8 @@ public class SortTester {
         }
 
         System.out.printf("%10d elements  =>  %6d ms \n", LENGTH, endTime - startTime);
-
+        
+        pool.shutdown();
     }
 
     /**
@@ -74,7 +76,7 @@ public class SortTester {
     public static <E> boolean isSorted(E[] a, Comparator<? super E> comp) {
         for (int i = 0; i < a.length - 1; i++) {
             if (comp.compare(a[i], a[i + 1]) > 0) {
-                System.out.println(a[i] + " > " + a[i + 1]);
+                System.out.println(a[i] + "[" + i + "]" + " > " + a[i + 1] + "[" + (i + 1) + "]");
                 return false;
             }
         }

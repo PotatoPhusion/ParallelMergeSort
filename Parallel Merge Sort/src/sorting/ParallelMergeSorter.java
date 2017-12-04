@@ -1,121 +1,83 @@
 package sorting;
 
 import java.util.Comparator;
-import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.RecursiveAction;
 
 public class ParallelMergeSorter<E> extends RecursiveAction {
-	
-	private Integer[] a;
-	private Comparator<Integer> comp;
+
+	private E[] a;
 	private int from;
 	private int to;
-	private int maxThreads;
+	private Comparator<? super E> comp;
 	private static int availableThreads;
 	
-	/**
-     * Sorts an array, using the merge sort algorithm.
-     *
-     * @param a the array to sort
-     * @param comp the comparator to compare array elements
-     */
-    @SuppressWarnings("unchecked")
 	public ParallelMergeSorter(E[] a, Comparator<? super E> comp, int maxThreads) {
-    	if (maxThreads > SortTester.maxThreads) {
-    		System.out.println("Requested more threads than CPU cores!");
-    		return;
-    	}
-    	
-    	System.out.println("Max Threads (in constructor): " + maxThreads);
-    	
-    	if (this.maxThreads != maxThreads) {
-    		this.maxThreads = maxThreads;
-    		this.availableThreads = maxThreads;
-    	}
-    	this.a = (Integer[])a;
-    	this.comp = (Comparator<Integer>)comp;
-    }
-    
-    /**
-     * Sorts an array, using the merge sort algorithm.
-     *
-     * @param a the array to sort
-     * @param comp the comparator to compare array elements
-     */
-    @SuppressWarnings("unchecked")
-	public ParallelMergeSorter(E[] a, int from, int to, Comparator<? super E> comp, int maxThreads) {
-    	
-    	this.a = (Integer[])a;
-    	this.comp = (Comparator<Integer>)comp;
-    	this.from = from;
-    	this.to = to;
-    }
-
-    /**
-     * Sorts a range of an array, using the merge sort algorithm.
-     *
-     * @param a the array to sort
-     * @param from the first index of the range to sort
-     * @param to the last index of the range to sort
-     * @param comp the comparator to compare array elements
-     */
-    private <E> void parallelMergeSort(E[] a, int from, int to,
-            Comparator<? super E> comp) {
-        if (from == to) {
-            return;
-        }
-        int mid = (from + to) / 2;
-        // Sort the first and the second half
-        //System.out.println("=============== PARALLEL ===============");
-        
-        if (availableThreads <= 1) {
-        	mergeSort(a, from, mid, comp);
-            mergeSort(a, mid + 1, to, comp);
-        }
-        else {
-	        availableThreads -= 2;
-	        
-	        invokeAll(new ParallelMergeSorter(a, from, mid, comp, maxThreads),
-	        		  new ParallelMergeSorter(a, mid, to, comp, maxThreads));
-	        
-	        availableThreads += 2;
-        }
-        merge(a, from, mid, to, comp);
-    }
-
-    /**
-     * Sorts a range of an array, using the merge sort algorithm.
-     *
-     * @param a the array to sort
-     * @param from the first index of the range to sort
-     * @param to the last index of the range to sort
-     * @param comp the comparator to compare array elements
-     */
-    private <E> void mergeSort(E[] a, int from, int to,
-            Comparator<? super E> comp) {
-    	if (from == to) {
-            return;
-        }
-        int mid = (from + to) / 2;
-        // Sort the first and the second half
-        //System.out.println("=============== SERIAL ===============");
-
-        if (availableThreads <= 1) {
-        	mergeSort(a, from, mid, comp);
-            mergeSort(a, mid + 1, to, comp);
-        }
-        else {
-	        availableThreads -= 2;
-	        
-	        invokeAll(new ParallelMergeSorter(a, from, mid, comp, maxThreads),
-	        		  new ParallelMergeSorter(a, mid, to, comp, maxThreads));
-	        
-	        availableThreads += 2;
-        }
-        merge(a, from, mid, to, comp);
-    }
-    
-    /**
+		this.a = a;
+		this.comp = comp;
+		availableThreads = maxThreads;
+	}
+	
+	public ParallelMergeSorter(E[] a, int from, int to, Comparator<? super E> comp) {
+		this.a = a;
+    	this.comp = comp;
+	}
+	
+	private void parallelMergeSort(E[] a, int from, int to, Comparator<? super E> comp) {
+		if (from == to) {
+			return;
+		}
+		int mid = (from + to) / 2;
+		
+		// Sort the first and the second half
+		System.out.println("Available Threads: " + availableThreads);
+		if (availableThreads <= 1) {
+			serialMergeSort(a, from, mid, comp);
+			serialMergeSort(a, mid + 1, to, comp);
+		}
+		else {
+			availableThreads -= 2;
+			
+			System.out.println("============== PARALLEL ===============");
+			
+			RecursiveAction leftSort = new ParallelMergeSorter(a, from, mid, comp);
+			RecursiveAction rightSort = new ParallelMergeSorter(a, mid + 1, to, comp);
+			
+			invokeAll(leftSort, rightSort);+
+			
+			availableThreads += 2;
+		}
+		
+		merge(a, from, mid, to, comp);
+	}
+	
+	private void serialMergeSort(E[] a, int from, int to, Comparator<? super E> comp) {
+		if (from == to) {
+			return;
+		}
+		int mid = (from + to) / 2;
+		
+		// Sort the first and the second half
+		if (availableThreads <= 1) {
+			serialMergeSort(a, from, mid, comp);
+			serialMergeSort(a, mid + 1, to, comp);
+		}
+		else {
+			availableThreads -= 2;
+			
+			System.out.println("============== PARALLEL ===============");
+			
+			RecursiveAction leftSort = new ParallelMergeSorter(a, from, mid, comp);
+			RecursiveAction rightSort = new ParallelMergeSorter(a, mid + 1, to, comp);
+			
+			invokeAll(leftSort, rightSort);
+			
+			availableThreads += 2;
+		}
+		
+		merge(a, from, mid, to, comp);
+	}
+	
+	/**
      * Merges two adjacent subranges of an array
      *
      * @param a the array with entries to be merged
@@ -177,7 +139,11 @@ public class ParallelMergeSorter<E> extends RecursiveAction {
 
 	@Override
 	protected void compute() {
-		parallelMergeSort(a, 0, a.length - 1, comp);
+		if (a.length != 1) {
+			//availableThreads--;
+			parallelMergeSort(a, 0, a.length - 1, comp);
+			//availableThreads++;
+		}
 	}
-    
+	
 }
