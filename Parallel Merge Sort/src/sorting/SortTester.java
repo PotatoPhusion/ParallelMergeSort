@@ -3,6 +3,8 @@ package sorting;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Random;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  *
@@ -10,12 +12,35 @@ import java.util.Random;
  */
 public class SortTester {
 
+	static int maxThreads;
+	
     public static void main(String[] args) {
-        runSortTester();
+    	maxThreads = Runtime.getRuntime().availableProcessors();
+    	
+    	System.out.println("Processors: " + maxThreads);
+    	
+    	for (int i = 1; i <= maxThreads; i *= 2) {
+    		if (i == 1)
+    			System.out.println(i + " thread:");
+    		else
+    			System.out.println(i + " threads:");
+	    	for (int j = 0; j < 15; j++) {
+	    		try {
+	    			runSortTester(1000 << j, i);
+	    		}
+	    		catch (RuntimeException e) {
+	    			System.out.println("Sorting failed, try reducing the number of threads.");
+	    			e.getMessage();
+	    			break;
+	    		}
+	    	}
+	    	System.out.println();
+    	}
     }
 
-    public static void runSortTester() {
-        int LENGTH = 100000;   // length of array to sort
+    public static void runSortTester(int elements, int threads) {
+    	int availableThreads = maxThreads;
+        int LENGTH = elements;   // length of array to sort
         Integer[] a = createRandomArray(LENGTH);
 
         Comparator<Integer> comp = new Comparator<Integer>() {
@@ -26,7 +51,15 @@ public class SortTester {
 
         // run the algorithm and time how long it takes to sort the elements
         long startTime = System.currentTimeMillis();
-        MergeSorter.sort(a, comp);
+        Runnable r = new ParallelMergeSorter(a, comp, threads);
+        Thread t = new Thread(r);
+        t.start();
+        try {
+			t.join();
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			System.out.println(t.getName() + " interrupted.");
+		}
         long endTime = System.currentTimeMillis();
 
         if (!isSorted(a, comp)) {
