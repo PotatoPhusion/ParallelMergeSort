@@ -1,9 +1,9 @@
 package sorting;
 
 import java.util.Comparator;
-import java.util.concurrent.RecursiveAction;
+import java.util.concurrent.locks.ReentrantLock;
 
-public class ParallelMergeSorter<E> extends RecursiveAction {
+public class ParallelMergeSorter<E> implements Runnable {
 
 	private E[] a;
 	private int from;
@@ -23,14 +23,19 @@ public class ParallelMergeSorter<E> extends RecursiveAction {
 	}
 	
 	private void parallelMergeSort(E[] a, int from, int to, Comparator<? super E> comp) {
-		if (from == to) {
+		if (from >= to) {
 			return;
 		}
 		int mid = (from + to) / 2;
 		
+		System.out.println("In Parallel");
+		
 		// Sort the first and the second half
 		System.out.println("Available Threads: " + availableThreads);
 		if (availableThreads <= 1) {
+			
+			System.out.println("Went serial");
+			
 			serialMergeSort(a, from, mid, comp);
 			serialMergeSort(a, mid + 1, to, comp);
 		}
@@ -39,10 +44,21 @@ public class ParallelMergeSorter<E> extends RecursiveAction {
 			
 			System.out.println("============== PARALLEL ===============");
 			
-			RecursiveAction leftSort = new ParallelMergeSorter(a, from, mid, comp);
-			RecursiveAction rightSort = new ParallelMergeSorter(a, mid + 1, to, comp);
+			Runnable leftSort = new ParallelMergeSorter(a, from, mid, comp);
+			Runnable rightSort = new ParallelMergeSorter(a, mid + 1, to, comp);
 			
-			invokeAll(leftSort, rightSort);+
+			Thread leftThread = new Thread(new Runnable());
+			Thread rightThread = new Thread(rightSort);
+			
+			leftThread.start();
+			rightThread.start();
+			
+			try {
+				leftThread.join();
+				rightThread.join();
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
 			
 			availableThreads += 2;
 		}
@@ -51,28 +67,17 @@ public class ParallelMergeSorter<E> extends RecursiveAction {
 	}
 	
 	private void serialMergeSort(E[] a, int from, int to, Comparator<? super E> comp) {
-		if (from == to) {
+		if (from >= to) {
 			return;
 		}
 		int mid = (from + to) / 2;
 		
 		// Sort the first and the second half
-		if (availableThreads <= 1) {
-			serialMergeSort(a, from, mid, comp);
-			serialMergeSort(a, mid + 1, to, comp);
-		}
-		else {
-			availableThreads -= 2;
-			
-			System.out.println("============== PARALLEL ===============");
-			
-			RecursiveAction leftSort = new ParallelMergeSorter(a, from, mid, comp);
-			RecursiveAction rightSort = new ParallelMergeSorter(a, mid + 1, to, comp);
-			
-			invokeAll(leftSort, rightSort);
-			
-			availableThreads += 2;
-		}
+		
+		//System.out.println(Arrays.toString(a));
+		
+		serialMergeSort(a, from, mid, comp);
+		serialMergeSort(a, mid + 1, to, comp);
 		
 		merge(a, from, mid, to, comp);
 	}
@@ -138,11 +143,15 @@ public class ParallelMergeSorter<E> extends RecursiveAction {
     }
 
 	@Override
-	protected void compute() {
-		if (a.length != 1) {
-			//availableThreads--;
-			parallelMergeSort(a, 0, a.length - 1, comp);
-			//availableThreads++;
+	public void run() {
+		ReentrantLock lock = new ReentrantLock();
+		lock.lock();
+		
+		try {
+			parallelMergeSort(a, 0, a.length - 1, comp);	
+		}
+		finally {
+			lock.unlock();
 		}
 	}
 	

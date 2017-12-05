@@ -50,10 +50,21 @@ public class SortTester {
         // run the algorithm and time how long it takes to sort the elements
         long startTime = System.currentTimeMillis();
         
-        ParallelMergeSorter sorter =  new ParallelMergeSorter(a, comp, threadCount);
-        ForkJoinPool pool = new ForkJoinPool(threadCount);
-        pool.invoke(sorter);
-        System.out.println("Max Threads in Pool: " + pool.getParallelism());
+        Runnable sorter =  new ParallelMergeSorter(a, comp, threadCount);
+        //ForkJoinPool pool = new ForkJoinPool(threadCount);
+        //pool.invoke(sorter);
+        Thread sortThread = new Thread(sorter);
+        
+        sortThread.start();
+        
+        try {
+			sortThread.join();
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+        
+        //System.out.println("Max Threads in Pool: " + pool.getParallelism());
         
         long endTime = System.currentTimeMillis();
 
@@ -63,7 +74,7 @@ public class SortTester {
 
         System.out.printf("%10d elements  =>  %6d ms \n", LENGTH, endTime - startTime);
         
-        pool.shutdown();
+        //pool.shutdown();
     }
 
     /**
